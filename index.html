@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DormFinder — Find Your Ideal Dorm Near Campus</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <style>
+    /* ═══════════════════════════════════════════════════════════
+       RESET & BASE
+    ═══════════════════════════════════════════════════════════ */
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family:'Inter',sans-serif; background:#060f2e; color:#fff; }
+
+    /* ═══════════════════════════════════════════════════════════
+       STICKY NAVBAR
+    ═══════════════════════════════════════════════════════════ */
+    .navbar {
+        position: fixed; top:0; left:0; right:0; z-index:50;
+        display:flex; align-items:center; justify-content:space-between;
+        padding:16px 60px;
+        background: rgba(6,15,46,0.85);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        transition: background 0.3s;
+    }
+    .nav-logo { display:flex; align-items:center; gap:10px; text-decoration:none; }
+    .nav-logo-icon {
+        width:36px; height:36px; background:#2563eb; border-radius:8px;
+        display:flex; align-items:center; justify-content:center; font-size:18px;
+    }
+    .nav-logo-text { font-size:18px; font-weight:700; color:#fff; }
+    .nav-logo-text span { color:#f59e0b; }
+    .nav-links { display:flex; align-items:center; gap:32px; list-style:none; }
+    .nav-links a {
+        text-decoration:none; color:rgba(255,255,255,0.75);
+        font-size:14px; font-weight:500; transition:color 0.2s;
+    }
+    .nav-links a:hover { color:#fff; }
+    .nav-actions { display:flex; align-items:center; gap:12px; }
+    .btn-signin {
+        padding:8px 20px; border:1.5px solid rgba(255,255,255,0.35);
+        border-radius:8px; background:transparent; color:#fff;
+        font-size:14px; font-weight:500; cursor:pointer;
+        font-family:'Inter',sans-serif; transition:background 0.2s;
+    }
+    .btn-signin:hover { background:rgba(255,255,255,0.08); }
+    .btn-signup {
+        padding:8px 20px; border:none; border-radius:8px;
+        background:#2563eb; color:#fff; font-size:14px; font-weight:600;
+        cursor:pointer; font-family:'Inter',sans-serif; transition:background 0.2s;
+    }
+    .btn-signup:hover { background:#1d4ed8; }
+
+    /* user pill shown when logged in */
+    .user-pill {
+        display:none; align-items:center; gap:8px;
+        background:rgba(37,99,235,0.2); border:1px solid rgba(37,99,235,0.4);
+        border-radius:20px; padding:6px 14px; font-size:13px; font-weight:600;
+    }
+    .user-pill.visible { display:flex; }
+    .btn-logout {
+        background:none; border:none; color:rgba(255,255,255,0.5);
+        font-size:12px; cursor:pointer; font-family:'Inter',sans-serif;
+        margin-left:4px; transition:color 0.2s;
+    }
+    .btn-logout:hover { color:#fff; }
+
+    /* ═══════════════════════════════════════════════════════════
+       SECTION 1 — HERO
+    ═══════════════════════════════════════════════════════════ */
+    .hero {
+        position:relative; width:100%; min-height:100vh;
+        display:flex; flex-direction:column; overflow:hidden;
+    }
+    .hero-bg {
+        position:absolute; inset:0;
+        background-image:url('https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=1920&q=80');
+        background-size:cover; background-position:center right;
+    }
+    .hero-overlay {
+        position:absolute; inset:0;
+        background:linear-gradient(105deg,
+            rgba(5,15,50,0.97) 0%,
+            rgba(5,15,50,0.90) 40%,
+            rgba(5,15,50,0.55) 70%,
+            rgba(5,15,50,0.20) 100%);
+    }
+    .hero-nav-spacer { height:72px; position:relative; z-index:1; }
+    .hero-content {
+        position:relative; z-index:1;
+        flex:1; display:flex; flex-direction:column; justify-content:center;
+        padding:0 60px 80px;
+        max-width:640px;
+    }
+    .hero-badge {
+        display:inline-flex; align-items:center; gap:8px;
+        background:rgba(37,99,235,0.25); border:1px solid rgba(37,99,235,0.5);
+        border-radius:20px; padding:6px 14px; margin-bottom:24px; width:fit-content;
+    }
+    .hero-badge-dot { width:6px; height:6px; border-radius:50%; background:#3b82f6; }
+    .hero-badge-text { font-size:12px; font-weight:500; color:rgba(255,255,255,0.9); }
+    .hero-title {
+        font-size:clamp(36px,5vw,56px); font-weight:800;
+        line-height:1.1; color:#fff; margin-bottom:20px; letter-spacing:-1px;
+    }
+    .hero-title .highlight { color:#f59e0b; font-style:italic; }
+    .hero-desc {
+        font-size:15px; line-height:1.7; color:rgba(255,255,255,0.65);
+        margin-bottom:36px; max-width:420px;
+    }
+    .hero-desc strong { color:rgba(255,255,255,0.9); font-weight:500; }
+    .hero-cta { display:flex; align-items:center; gap:14px; margin-bottom:64px; }
+    .btn-browse {
+        display:inline-flex; align-items:center; gap:8px; padding:13px 26px;
+        background:#2563eb; color:#fff; border:none; border-radius:8px;
+        font-size:15px; font-weight:600; cursor:pointer;
+        font-family:'Inter',sans-serif; transition:background 0.2s,transform 0.15s;
+    }
+    .btn-browse:hover { background:#1d4ed8; transform:translateY(-1px); }
+    .btn-howitworks {
+        display:inline-flex; align-items:center; gap:8px; padding:13px 26px;
+        background:rgba(255,255,255,0.08); color:#fff;
+        border:1.5px solid rgba(255,255,255,0.25); border-radius:8px;
+        font-size:15px; font-weight:500; cursor:pointer;
+        font-family:'Inter',sans-serif; transition:background 0.2s;
+    }
+    .btn-howitworks:hover { background:rgba(255,255,255,0.14); }
+    .hero-stats { display:flex; gap:48px; }
+    .stat-number { font-size:28px; font-weight:800; line-height:1; margin-bottom:4px; }
+    .stat-label { font-size:12px; color:rgba(255,255,255,0.5); }
+    .scroll-indicator {
+        position:absolute; bottom:28px; left:50%; transform:translateX(-50%);
+        z-index:1; display:flex; flex-direction:column; align-items:center; gap:6px;
+    }
+    .scroll-indicator span {
+        font-size:10px; font-weight:600; letter-spacing:2px;
+        color:rgba(255,255,255,0.35); text-transform:uppercase;
+    }
+    .scroll-arrow {
+        width:1px; height:28px;
+        background:linear-gradient(to bottom,rgba(255,255,255,0.4),transparent);
+        animation:scrollPulse 1.6s ease-in-out infinite;
+    }
+    @keyframes scrollPulse {
+        0%,100%{opacity:0.4;} 50%{opacity:1;}
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       SHARED CONTAINER — centers all section content
+    ═══════════════════════════════════════════════════════════ */
+    .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        width: 100%;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       SECTION 2 — HOW IT WORKS
+    ═══════════════════════════════════════════════════════════ */
+    .section-hiw {
+        background:#07112e; padding:100px 60px;
+        text-align:center;
+    }
+    .section-eyebrow {
+        font-size:12px; font-weight:700; letter-spacing:2px;
+        color:#3b82f6; text-transform:uppercase; margin-bottom:12px;
+    }
+    .section-title {
+        font-size:clamp(28px,4vw,42px); font-weight:800;
+        color:#fff; margin-bottom:12px; letter-spacing:-0.5px;
+    }
+    .section-sub {
+        font-size:15px; color:rgba(255,255,255,0.5); margin-bottom:56px;
+    }
+    .hiw-steps { display:flex; gap:24px; justify-content:center; flex-wrap:wrap; }
+    .hiw-card {
+        background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+        border-radius:16px; padding:36px 28px; flex:1; min-width:240px; max-width:300px;
+        text-align:center; transition:border-color 0.2s,transform 0.2s;
+    }
+    .hiw-card:hover { border-color:rgba(37,99,235,0.5); transform:translateY(-4px); }
+    .hiw-num {
+        width:36px; height:36px; background:#2563eb; border-radius:50%;
+        font-size:14px; font-weight:800; display:flex; align-items:center;
+        justify-content:center; margin:0 auto 20px;
+    }
+    .hiw-icon { font-size:32px; margin-bottom:16px; }
+    .hiw-card h3 { font-size:16px; font-weight:700; color:#fff; margin-bottom:10px; }
+    .hiw-card p { font-size:13px; color:rgba(255,255,255,0.5); line-height:1.6; }
+
+    /* ═══════════════════════════════════════════════════════════
+       SECTION 3 — FEATURES
+    ═══════════════════════════════════════════════════════════ */
+    .section-features { background:#060f2e; padding:100px 60px; }
+    .features-header { margin-bottom:56px; }
+    .features-grid {
+        display:grid; grid-template-columns:repeat(2,1fr); gap:20px; max-width:900px;
+    }
+    .feat-card {
+        background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+        border-radius:16px; padding:28px; transition:border-color 0.2s,transform 0.2s;
+    }
+    .feat-card:hover { border-color:rgba(37,99,235,0.4); transform:translateY(-3px); }
+    .feat-icon-wrap {
+        width:44px; height:44px; background:rgba(37,99,235,0.2); border-radius:10px;
+        display:flex; align-items:center; justify-content:center;
+        font-size:20px; margin-bottom:16px;
+    }
+    .feat-card h3 { font-size:15px; font-weight:700; color:#fff; margin-bottom:8px; }
+    .feat-card p { font-size:13px; color:rgba(255,255,255,0.5); line-height:1.6; }
+
+    /* ═══════════════════════════════════════════════════════════
+       SECTION 4 — LOCATION MAP
+    ═══════════════════════════════════════════════════════════ */
+    .section-map { background:#07112e; padding:100px 60px; }
+    .map-inner {
+        display:flex; gap:60px; align-items:center; flex-wrap:wrap; max-width:1100px; margin:0 auto;
+    }
+    .map-text { flex:1; min-width:280px; }
+    .map-text h2 { font-size:clamp(26px,3.5vw,38px); font-weight:800; margin-bottom:16px; line-height:1.2; }
+    .map-text p { font-size:14px; color:rgba(255,255,255,0.55); line-height:1.7; margin-bottom:24px; }
+    .map-locs { list-style:none; margin-bottom:32px; display:flex; flex-direction:column; gap:10px; }
+    .map-locs li { display:flex; align-items:center; gap:10px; font-size:14px; }
+    .loc-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .btn-see-all {
+        display:inline-flex; align-items:center; gap:8px; padding:12px 24px;
+        background:#2563eb; color:#fff; border:none; border-radius:8px;
+        font-size:14px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif;
+        transition:background 0.2s;
+    }
+    .btn-see-all:hover { background:#1d4ed8; }
+    #map {
+        flex:1; min-width:300px; height:340px; border-radius:16px;
+        border:1px solid rgba(255,255,255,0.1); overflow:hidden;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       SECTION 5 — BROWSE DORMS (listings)
+    ═══════════════════════════════════════════════════════════ */
+    .section-browse { background:#060f2e; padding:100px 0 60px; }
+    .browse-header {
+        padding:0 60px; display:flex; align-items:flex-end;
+        justify-content:space-between; margin-bottom:32px; flex-wrap:wrap; gap:16px;
+    }
+    .browse-note { font-size:13px; color:rgba(255,255,255,0.4); }
+    /* filter bar */
+    .filter-bar {
+        padding:0 60px; display:flex; align-items:center; gap:12px;
+        margin-bottom:32px; flex-wrap:wrap;
+    }
+    .filter-chip {
+        padding:7px 16px; border-radius:20px;
+        border:1.5px solid rgba(255,255,255,0.15); background:transparent;
+        color:rgba(255,255,255,0.6); font-size:13px; font-weight:500;
+        cursor:pointer; font-family:'Inter',sans-serif; transition:all 0.2s;
+    }
+    .filter-chip:hover,.filter-chip.active {
+        border-color:#2563eb; background:rgba(37,99,235,0.15); color:#fff;
+    }
+    .filter-inputs { display:flex; align-items:center; gap:8px; margin-left:auto; }
+    .price-input {
+        width:90px; padding:7px 12px; background:rgba(255,255,255,0.06);
+        border:1.5px solid rgba(255,255,255,0.12); border-radius:8px;
+        color:#fff; font-size:13px; font-family:'Inter',sans-serif; outline:none;
+    }
+    .price-input::placeholder { color:rgba(255,255,255,0.3); }
+    .price-input:focus { border-color:#2563eb; }
+
+    /* listings grid */
+    .listings-wrap { padding:0 60px; }
+    .results-bar {
+        display:flex; align-items:center; justify-content:space-between;
+        margin-bottom:20px; font-size:13px; color:rgba(255,255,255,0.5);
+    }
+    .results-bar strong { color:#fff; }
+    .dorm-grid {
+        display:grid; grid-template-columns:repeat(3,1fr); gap:20px;
+    }
+    .dorm-card {
+        border-radius:16px; overflow:hidden;
+        border:1px solid rgba(255,255,255,0.08);
+        background:rgba(255,255,255,0.03);
+        transition:transform 0.2s,border-color 0.2s,box-shadow 0.2s;
+        cursor:pointer;
+    }
+    .dorm-card:hover {
+        transform:translateY(-5px);
+        border-color:rgba(37,99,235,0.5);
+        box-shadow:0 12px 40px rgba(0,0,0,0.4);
+    }
+    .dorm-thumb {
+        height:140px; display:flex; align-items:center; justify-content:center;
+        font-size:48px; position:relative;
+    }
+    .dorm-badge-type {
+        position:absolute; top:12px; left:12px;
+        padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700;
+    }
+    .badge-dorm    { background:rgba(37,99,235,0.85); color:#fff; }
+    .badge-bh      { background:rgba(245,158,11,0.85); color:#fff; }
+    .badge-apt     { background:rgba(16,185,129,0.85); color:#fff; }
+    .dorm-fav {
+        position:absolute; top:10px; right:10px;
+        background:rgba(0,0,0,0.4); border:none; border-radius:50%;
+        width:30px; height:30px; display:flex; align-items:center;
+        justify-content:center; cursor:pointer; font-size:14px;
+        transition:background 0.2s;
+    }
+    .dorm-fav:hover { background:rgba(239,68,68,0.5); }
+    .dorm-body { padding:16px; }
+    .dorm-name { font-size:15px; font-weight:700; color:#fff; margin-bottom:4px; }
+    .dorm-loc { font-size:12px; color:rgba(255,255,255,0.45); margin-bottom:10px; }
+    .dorm-price { font-size:17px; font-weight:800; color:#fff; margin-bottom:10px; }
+    .dorm-price span { font-size:12px; font-weight:400; color:rgba(255,255,255,0.4); }
+    .dorm-amenities { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+    .amenity-tag {
+        padding:3px 8px; background:rgba(255,255,255,0.07);
+        border-radius:4px; font-size:11px; color:rgba(255,255,255,0.6);
+    }
+    .dorm-footer { display:flex; align-items:center; justify-content:space-between; }
+    .dorm-rating { font-size:12px; color:rgba(255,255,255,0.6); }
+    .dorm-rating .star { color:#f59e0b; }
+    .dorm-avail {
+        font-size:11px; font-weight:700; padding:3px 8px; border-radius:6px;
+    }
+    .avail-green  { background:rgba(34,197,94,0.15);  color:#4ade80; }
+    .avail-yellow { background:rgba(245,158,11,0.15); color:#fbbf24; }
+    .avail-red    { background:rgba(239,68,68,0.15);  color:#f87171; }
+
+    /* ═══════════════════════════════════════════════════════════
+       SECTION 6 — CTA BANNER
+    ═══════════════════════════════════════════════════════════ */
+    .section-cta {
+        background:linear-gradient(135deg,#1e3a8a 0%,#1d4ed8 100%);
+        padding:80px 60px; text-align:center;
+    }
+    .section-cta h2 { font-size:clamp(26px,4vw,40px); font-weight:800; margin-bottom:12px; }
+    .section-cta p { font-size:15px; color:rgba(255,255,255,0.7); margin-bottom:32px; }
+    .cta-btns { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
+    .btn-cta-primary {
+        padding:14px 28px; background:#fff; color:#1d4ed8;
+        border:none; border-radius:8px; font-size:15px; font-weight:700;
+        cursor:pointer; font-family:'Inter',sans-serif; transition:transform 0.15s;
+    }
+    .btn-cta-primary:hover { transform:translateY(-2px); }
+    .btn-cta-ghost {
+        padding:14px 28px; background:transparent;
+        border:2px solid rgba(255,255,255,0.5); color:#fff;
+        border-radius:8px; font-size:15px; font-weight:600;
+        cursor:pointer; font-family:'Inter',sans-serif; transition:background 0.2s;
+    }
+    .btn-cta-ghost:hover { background:rgba(255,255,255,0.1); }
+
+    /* ═══════════════════════════════════════════════════════════
+       SECTION 7 — CONTACT
+    ═══════════════════════════════════════════════════════════ */
+    .section-contact { background:#07112e; padding:100px 60px; }
+    .contact-inner {
+        display:flex; gap:60px; max-width:1000px; margin:0 auto; flex-wrap:wrap;
+    }
+    .contact-left { flex:1; min-width:260px; }
+    .contact-left h2 { font-size:32px; font-weight:800; margin-bottom:10px; }
+    .contact-left p { font-size:14px; color:rgba(255,255,255,0.5); margin-bottom:32px; }
+    .contact-info { display:flex; flex-direction:column; gap:20px; }
+    .ci-item { display:flex; align-items:flex-start; gap:14px; }
+    .ci-icon {
+        width:36px; height:36px; border-radius:50%;
+        background:rgba(37,99,235,0.2); display:flex; align-items:center;
+        justify-content:center; font-size:16px; flex-shrink:0;
+    }
+    .ci-label { font-size:11px; font-weight:600; color:rgba(255,255,255,0.35);
+        text-transform:uppercase; letter-spacing:1px; margin-bottom:2px; }
+    .ci-value { font-size:14px; color:rgba(255,255,255,0.8); }
+    .contact-form-wrap {
+        flex:1; min-width:300px;
+        background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+        border-radius:16px; padding:32px;
+    }
+    .contact-form-wrap h3 { font-size:16px; font-weight:700; margin-bottom:20px; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+    .cf-group { margin-bottom:14px; }
+    .cf-label { display:block; font-size:12px; font-weight:600;
+        color:rgba(255,255,255,0.6); margin-bottom:6px; }
+    .cf-input, .cf-textarea {
+        width:100%; padding:10px 14px;
+        background:rgba(255,255,255,0.06); border:1.5px solid rgba(255,255,255,0.1);
+        border-radius:8px; color:#fff; font-size:14px; font-family:'Inter',sans-serif;
+        outline:none; transition:border-color 0.2s;
+    }
+    .cf-input::placeholder, .cf-textarea::placeholder { color:rgba(255,255,255,0.25); }
+    .cf-input:focus, .cf-textarea:focus { border-color:#2563eb; }
+    .cf-textarea { resize:vertical; min-height:100px; }
+    .btn-send {
+        width:100%; padding:13px; background:#2563eb; color:#fff;
+        border:none; border-radius:8px; font-size:14px; font-weight:700;
+        cursor:pointer; font-family:'Inter',sans-serif; transition:background 0.2s;
+        display:flex; align-items:center; justify-content:center; gap:8px;
+    }
+    .btn-send:hover { background:#1d4ed8; }
+
+    /* ═══════════════════════════════════════════════════════════
+       FOOTER
+    ═══════════════════════════════════════════════════════════ */
+    .footer {
+        background:#04091e; padding:40px 60px;
+        display:flex; align-items:center; justify-content:space-between;
+        flex-wrap:wrap; gap:16px;
+        border-top:1px solid rgba(255,255,255,0.06);
+    }
+    .footer-logo { display:flex; align-items:center; gap:8px; }
+    .footer-logo-icon {
+        width:28px; height:28px; background:#2563eb; border-radius:6px;
+        display:flex; align-items:center; justify-content:center; font-size:14px;
+    }
+    .footer-logo-text { font-size:15px; font-weight:700; }
+    .footer-logo-text span { color:#f59e0b; }
+    .footer-copy { font-size:12px; color:rgba(255,255,255,0.3); }
+    .footer-links { display:flex; gap:20px; }
+    .footer-links a {
+        font-size:12px; color:rgba(255,255,255,0.4); text-decoration:none; transition:color 0.2s;
+    }
+    .footer-links a:hover { color:#fff; }
+
+    /* ═══════════════════════════════════════════════════════════
+       AUTH MODAL
+    ═══════════════════════════════════════════════════════════ */
+    .modal-overlay {
+        display:none; position:fixed; inset:0;
+        background:rgba(3,10,35,0.8); backdrop-filter:blur(8px);
+        z-index:200; align-items:center; justify-content:center;
+    }
+    .modal-overlay.active { display:flex; }
+    .modal {
+        background:#0d1b3e; border:1px solid rgba(255,255,255,0.08);
+        border-radius:18px; padding:32px 32px 28px;
+        width:100%; max-width:440px; position:relative;
+        box-shadow:0 25px 60px rgba(0,0,0,0.6);
+        animation:modalIn 0.22s ease;
+        max-height:90vh; overflow-y:auto;
+    }
+    @keyframes modalIn {
+        from{opacity:0;transform:translateY(-14px) scale(0.97);}
+        to{opacity:1;transform:translateY(0) scale(1);}
+    }
+    .modal-close {
+        position:absolute; top:16px; right:16px;
+        background:rgba(255,255,255,0.08); border:none; color:rgba(255,255,255,0.6);
+        width:30px; height:30px; border-radius:8px; cursor:pointer; font-size:16px;
+        display:flex; align-items:center; justify-content:center; transition:background 0.2s;
+    }
+    .modal-close:hover { background:rgba(255,255,255,0.15); color:#fff; }
+    .modal-tabs {
+        display:flex; background:rgba(255,255,255,0.06);
+        border-radius:10px; padding:4px; margin-bottom:28px;
+    }
+    .modal-tab {
+        flex:1; padding:9px; border:none; border-radius:8px;
+        background:transparent; color:rgba(255,255,255,0.5);
+        font-size:14px; font-weight:600; cursor:pointer;
+        font-family:'Inter',sans-serif; transition:background 0.2s,color 0.2s;
+    }
+    .modal-tab.active { background:#2563eb; color:#fff; }
+    .modal-panel { display:none; }
+    .modal-panel.active { display:block; }
+    .modal-heading { font-size:22px; font-weight:800; color:#fff; margin-bottom:4px; }
+    .modal-subheading { font-size:14px; color:rgba(255,255,255,0.5); margin-bottom:24px; }
+    .form-group { margin-bottom:16px; }
+    .form-label { display:block; font-size:13px; font-weight:600;
+        color:rgba(255,255,255,0.85); margin-bottom:7px; }
+    .form-input-wrap { position:relative; }
+    .form-input-icon {
+        position:absolute; left:14px; top:50%; transform:translateY(-50%);
+        color:rgba(255,255,255,0.35); font-size:15px; pointer-events:none;
+    }
+    .form-input {
+        width:100%; padding:12px 14px 12px 40px;
+        background:rgba(255,255,255,0.06); border:1.5px solid rgba(255,255,255,0.1);
+        border-radius:10px; color:#fff; font-size:14px;
+        font-family:'Inter',sans-serif; outline:none; transition:border-color 0.2s;
+    }
+    .form-input::placeholder { color:rgba(255,255,255,0.3); }
+    .form-input:focus { border-color:#2563eb; background:rgba(37,99,235,0.07); }
+    .forgot-link {
+        display:block; text-align:right; font-size:13px; font-weight:600;
+        color:#3b82f6; text-decoration:none; margin-top:-8px; margin-bottom:20px;
+    }
+    .btn-modal-submit {
+        width:100%; padding:14px; background:#2563eb; color:#fff; border:none;
+        border-radius:10px; font-size:15px; font-weight:700; cursor:pointer;
+        font-family:'Inter',sans-serif; transition:background 0.2s; margin-bottom:16px;
+    }
+    .btn-modal-submit:hover { background:#1d4ed8; }
+    .modal-switch { text-align:center; font-size:13px; color:rgba(255,255,255,0.5); }
+    .modal-switch a { color:#3b82f6; font-weight:700; cursor:pointer; }
+    .modal-switch a:hover { color:#60a5fa; }
+    .role-label { font-size:13px; font-weight:600; color:rgba(255,255,255,0.85);
+        margin-bottom:10px; display:block; }
+    .role-options { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
+    .role-option {
+        border:1.5px solid rgba(255,255,255,0.12); border-radius:10px; padding:16px 12px;
+        display:flex; flex-direction:column; align-items:center; gap:8px;
+        cursor:pointer; background:rgba(255,255,255,0.04); transition:all 0.2s;
+    }
+    .role-option:hover { border-color:rgba(37,99,235,0.5); }
+    .role-option.selected { border-color:#2563eb; background:rgba(37,99,235,0.15); }
+    .role-option-icon { font-size:22px; }
+    .role-option-label { font-size:13px; font-weight:600; color:rgba(255,255,255,0.6); }
+    .role-option.selected .role-option-label { color:#fff; }
+    .form-msg {
+        display:none; border-radius:8px; padding:10px 14px;
+        font-size:13px; margin-bottom:14px;
+    }
+    .form-msg.visible { display:block; }
+    .form-msg.error { background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.35); color:#fca5a5; }
+    .form-msg.success { background:rgba(34,197,94,0.15); border:1px solid rgba(34,197,94,0.35); color:#86efac; }
+
+    /* ═══════════════════════════════════════════════════════════
+       BOOKING MODAL
+    ═══════════════════════════════════════════════════════════ */
+    .book-modal {
+        background:#0d1b3e; border:1px solid rgba(255,255,255,0.08);
+        border-radius:18px; padding:32px; width:100%; max-width:480px;
+        position:relative; box-shadow:0 25px 60px rgba(0,0,0,0.6);
+        animation:modalIn 0.22s ease; max-height:90vh; overflow-y:auto;
+    }
+    .book-dorm-info {
+        background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+        border-radius:12px; padding:16px; margin-bottom:24px;
+        display:flex; align-items:center; gap:14px;
+    }
+    .book-dorm-emoji { font-size:32px; }
+    .book-dorm-name { font-size:15px; font-weight:700; color:#fff; }
+    .book-dorm-price { font-size:13px; color:rgba(255,255,255,0.5); }
+    .book-section-label { font-size:12px; font-weight:700; letter-spacing:1px;
+        color:rgba(255,255,255,0.35); text-transform:uppercase; margin-bottom:12px; }
+    .book-dates { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px; }
+    .book-note {
+        background:rgba(37,99,235,0.1); border:1px solid rgba(37,99,235,0.3);
+        border-radius:8px; padding:12px 14px; font-size:13px;
+        color:rgba(255,255,255,0.6); margin-bottom:20px; line-height:1.6;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       RESPONSIVE
+    ═══════════════════════════════════════════════════════════ */
+    @media(max-width:900px) {
+        .navbar { padding:14px 24px; }
+        .nav-links { display:none; }
+        .hero-content { padding:0 24px 80px; max-width:100%; }
+        .hero-stats { gap:24px; flex-wrap:wrap; }
+        .hero-cta { flex-direction:column; align-items:flex-start; }
+        .section-hiw,.section-features,.section-map,
+        .section-browse,.section-cta,.section-contact { padding-left:24px; padding-right:24px; }
+        .features-grid { grid-template-columns:1fr; }
+        .dorm-grid { grid-template-columns:repeat(2,1fr); }
+        .browse-header,.filter-bar,.listings-wrap { padding-left:24px; padding-right:24px; }
+        .contact-inner { gap:32px; }
+        .footer { padding:32px 24px; flex-direction:column; align-items:flex-start; }
+    }
+    @media(max-width:600px) {
+        .dorm-grid { grid-template-columns:1fr; }
+        .form-row { grid-template-columns:1fr; }
+        .book-dates { grid-template-columns:1fr; }
+    }
+    </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════
+     STICKY NAVBAR
+══════════════════════════════════════════════════ -->
+<nav class="navbar" role="navigation" aria-label="Main navigation">
+    <a href="#hero" class="nav-logo">
+        <div class="nav-logo-icon">🏠</div>
+        <span class="nav-logo-text">Dorm <span>Finder</span></span>
+    </a>
+    <ul class="nav-links">
+        <li><a href="#browse">Browse Dorms</a></li>
+        <li><a href="#how-it-works">How It Works</a></li>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#contact">Contact</a></li>
+    </ul>
+    <div class="nav-actions">
+        <div class="user-pill" id="userPill">
+            <span>👤</span>
+            <span id="userPillName"></span>
+            <button class="btn-logout" onclick="handleLogout()">Log out</button>
+        </div>
+        <button class="btn-signin" id="navSignIn" onclick="openModal('signin')">Sign In</button>
+        <button class="btn-signup" id="navSignUp" onclick="openModal('register')">Sign Up Free</button>
+    </div>
+</nav>
+
+<!-- ══════════════════════════════════════════════════
+     SECTION 1 — HERO
+══════════════════════════════════════════════════ -->
+<section class="hero" id="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-overlay"></div>
+    <div class="hero-nav-spacer"></div>
+    <main class="hero-content">
+        <div class="hero-badge">
+            <div class="hero-badge-dot"></div>
+            <span class="hero-badge-text">Web-Based Dormitory Search &amp; Management System</span>
+        </div>
+        <h1 class="hero-title">
+            Find Your <span class="highlight">Ideal Dorm</span><br>
+            Near Campus — Fast.
+        </h1>
+        <p class="hero-desc">
+            Browse verified boarding houses and dormitories near your school.
+            Filter by <strong>price</strong>, <strong>location</strong>, and <strong>amenities</strong> — then book in minutes.
+        </p>
+        <div class="hero-cta">
+            <button class="btn-browse" onclick="scrollToBrowse()">🔍 Browse Dorms</button>
+            <button class="btn-howitworks" onclick="document.getElementById('how-it-works').scrollIntoView({behavior:'smooth'})">▶ How It Works</button>
+        </div>
+        <div class="hero-stats">
+            <div class="stat-item"><div class="stat-number">50+</div><div class="stat-label">Listed Dormitories</div></div>
+            <div class="stat-item"><div class="stat-number">3</div><div class="stat-label">Nearby Locations</div></div>
+            <div class="stat-item"><div class="stat-number">₱1,800</div><div class="stat-label">Starting Price / Month</div></div>
+            <div class="stat-item"><div class="stat-number">24/7</div><div class="stat-label">Available to Browse</div></div>
+        </div>
+    </main>
+    <div class="scroll-indicator" onclick="document.getElementById('how-it-works').scrollIntoView({behavior:'smooth'})">
+        <span>Scroll</span><div class="scroll-arrow"></div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     SECTION 2 — HOW IT WORKS
+══════════════════════════════════════════════════ -->
+<section class="section-hiw" id="how-it-works">
+    <div class="container">
+    <p class="section-eyebrow">Simple Process</p>
+    <h2 class="section-title">How DormFinder Works</h2>
+    <p class="section-sub">Finding your perfect dorm is as easy as three steps.</p>
+    <div class="hiw-steps">
+        <div class="hiw-card">
+            <div class="hiw-num">1</div>
+            <div class="hiw-icon">🔍</div>
+            <h3>Browse &amp; Filter</h3>
+            <p>Search dormitories by location, price range, and amenities. No account needed to browse.</p>
+        </div>
+        <div class="hiw-card">
+            <div class="hiw-num">2</div>
+            <div class="hiw-icon">💬</div>
+            <h3>Inquire or Book</h3>
+            <p>Found one you like? Create a free account to message the owner or send a booking request.</p>
+        </div>
+        <div class="hiw-card">
+            <div class="hiw-num">3</div>
+            <div class="hiw-icon">🏠</div>
+            <h3>Move In</h3>
+            <p>Get approved by the owner, confirm your move-in date, and secure your new home near campus.</p>
+        </div>
+    </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     SECTION 3 — FEATURES
+══════════════════════════════════════════════════ -->
+<section class="section-features" id="features">
+    <div class="container">
+    <div class="features-header">
+        <p class="section-eyebrow">Why DormFinder</p>
+        <h2 class="section-title">Everything you need to find the right dorm</h2>
+        <p class="section-sub">Built specifically for students and property owners near their campus.</p>
+    </div>
+    <div class="features-grid">
+        <div class="feat-card">
+            <div class="feat-icon-wrap">🔍</div>
+            <h3>Smart Search &amp; Filters</h3>
+            <p>Filter dormitories by rental price, location, room type, and specific amenities like WiFi, AC, CCTV, and parking.</p>
+        </div>
+        <div class="feat-card">
+            <div class="feat-icon-wrap">🗺️</div>
+            <h3>Interactive Location Map</h3>
+            <p>See exactly where each dormitory is located relative to your campus. Know the distance before you visit.</p>
+        </div>
+        <div class="feat-card">
+            <div class="feat-icon-wrap">🛏️</div>
+            <h3>Real-Time Room Availability</h3>
+            <p>See how many rooms are still available before contacting an owner — no wasted trips or calls.</p>
+        </div>
+        <div class="feat-card">
+            <div class="feat-icon-wrap">💬</div>
+            <h3>Direct Messaging</h3>
+            <p>Message property owners directly through the platform — ask questions, negotiate, and confirm details.</p>
+        </div>
+        <div class="feat-card">
+            <div class="feat-icon-wrap">📋</div>
+            <h3>Booking Requests</h3>
+            <p>Submit a booking request directly through the app. Owners review and approve — all in one place.</p>
+        </div>
+        <div class="feat-card">
+            <div class="feat-icon-wrap">🏢</div>
+            <h3>Owner Listing Management</h3>
+            <p>Property owners can add, update, and manage their listings — rooms, pricing, and availability — all in one dashboard.</p>
+        </div>
+    </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     SECTION 4 — LOCATION MAP
+══════════════════════════════════════════════════ -->
+<section class="section-map" id="location">
+    <div class="map-inner">
+        <div class="map-text">
+            <p class="section-eyebrow">Campus Proximity</p>
+            <h2>Find dorms<br>near your school</h2>
+            <p>All listed dormitories are near university campuses in the area. See locations on the map and find the closest one to your school.</p>
+            <ul class="map-locs">
+                <li><span class="loc-dot" style="background:#3b82f6"></span> Minglanilla, Cebu — most listings</li>
+                <li><span class="loc-dot" style="background:#f59e0b"></span> Talisay, Cebu — nearby options</li>
+                <li><span class="loc-dot" style="background:#22c55e"></span> Available rooms right now</li>
+            </ul>
+            <button class="btn-see-all" onclick="scrollToBrowse()">📍 See All Locations</button>
+        </div>
+        <div id="map"></div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     SECTION 5 — BROWSE DORMS (listings)
+══════════════════════════════════════════════════ -->
+<section class="section-browse" id="browse">
+    <div class="container">
+    <div class="browse-header">
+        <div>
+            <p class="section-eyebrow">Available Now</p>
+            <h2 class="section-title" style="margin-bottom:0">Top Student Accommodations</h2>
+        </div>
+        <span class="browse-note">Browse without an account. Sign up only to book.</span>
+    </div>
+
+    <!-- filter chips -->
+    <div class="filter-bar" style="padding:0">
+        <button class="filter-chip active" onclick="filterDorms('all',this)">All</button>
+        <button class="filter-chip" onclick="filterDorms('Minglanilla',this)">📍 Minglanilla</button>
+        <button class="filter-chip" onclick="filterDorms('Talisay',this)">📍 Talisay</button>
+        <button class="filter-chip" onclick="filterDorms('Dormitory',this)">🏠 Dormitory</button>
+        <button class="filter-chip" onclick="filterDorms('Boarding House',this)">🏘 Boarding House</button>
+        <button class="filter-chip" onclick="filterDorms('Apartment',this)">🏢 Apartment</button>
+        <div class="filter-inputs">
+            <input class="price-input" type="number" id="priceMin" placeholder="Min ₱" oninput="applyPriceFilter()">
+            <span style="color:rgba(255,255,255,0.3);font-size:13px">–</span>
+            <input class="price-input" type="number" id="priceMax" placeholder="Max ₱" oninput="applyPriceFilter()">
+        </div>
+    </div>
+
+    <div class="listings-wrap" style="padding:0">
+        <div class="results-bar">
+            <span>Showing <strong id="resultCount">6</strong> results</span>
+        </div>
+        <div class="dorm-grid" id="dormGrid"></div>
+    </div>
+    </div><!-- /.container -->
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     SECTION 6 — CTA BANNER
+══════════════════════════════════════════════════ -->
+<section class="section-cta" id="cta">
+    <div class="container">
+    <h2>Ready to find your dorm?</h2>
+    <p>Join students who found their perfect place near campus through DormFinder.</p>
+    <div class="cta-btns">
+        <button class="btn-cta-primary" onclick="openModal('register')">Create Free Account →</button>
+        <button class="btn-cta-ghost" onclick="openModal('signin')">Sign In</button>
+    </div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════
+     SECTION 7 — CONTACT
+══════════════════════════════════════════════════ -->
+<section class="section-contact" id="contact">
+    <div class="container">
+    <div class="contact-inner">
+        <div class="contact-left">
+            <p class="section-eyebrow">Get In Touch</p>
+            <h2>Contact Us</h2>
+            <p>Have questions about DormFinder? Want to list your property? We'd love to hear from you.</p>
+            <div class="contact-info">
+                <div class="ci-item">
+                    <div class="ci-icon">📍</div>
+                    <div><div class="ci-label">Location</div><div class="ci-value">Minglanilla, Cebu, Philippines</div></div>
+                </div>
+                <div class="ci-item">
+                    <div class="ci-icon">✉️</div>
+                    <div><div class="ci-label">Email</div><div class="ci-value">support@dormfinder.com</div></div>
+                </div>
+                <div class="ci-item">
+                    <div class="ci-icon">📞</div>
+                    <div><div class="ci-label">Phone</div><div class="ci-value">+63 900 000 0000</div></div>
+                </div>
+                <div class="ci-item">
+                    <div class="ci-icon">⏱️</div>
+                    <div><div class="ci-label">Response Time</div><div class="ci-value">Within 24 hours</div></div>
+                </div>
+            </div>
+        </div>
+        <div class="contact-form-wrap">
+            <h3>Send us a message</h3>
+            <div class="form-row">
+                <div><label class="cf-label">Full Name</label><input class="cf-input" placeholder="Juan Dela Cruz"></div>
+                <div><label class="cf-label">Email</label><input class="cf-input" placeholder="you@email.com" type="email"></div>
+            </div>
+            <div class="cf-group"><label class="cf-label">Subject</label><input class="cf-input" placeholder="e.g. Question about listing a property"></div>
+            <div class="cf-group"><label class="cf-label">Message</label><textarea class="cf-textarea" placeholder="Tell us how we can help…"></textarea></div>
+            <button class="btn-send">Send Message →</button>
+        </div>
+    </div><!-- /.contact-inner -->
+    </div><!-- /.container -->
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+    <div class="footer-logo">
+        <div class="footer-logo-icon">🏠</div>
+        <span class="footer-logo-text">Dorm <span>Finder</span></span>
+    </div>
+    <span class="footer-copy">© 2026 DormFinder. All rights reserved.</span>
+    <div class="footer-links">
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Service</a>
+        <a href="#contact">Contact</a>
+    </div>
+</footer>
+
+<!-- ══════════════════════════════════════════════════
+     AUTH MODAL
+══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="authModal" role="dialog" aria-modal="true">
+    <div class="modal">
+        <button class="modal-close" id="modalClose">&times;</button>
+        <div class="modal-tabs">
+            <button class="modal-tab active" id="tabSignIn" onclick="switchTab('signin')">Sign In</button>
+            <button class="modal-tab" id="tabRegister" onclick="switchTab('register')">Create Account</button>
+        </div>
+
+        <!-- SIGN IN -->
+        <div class="modal-panel active" id="panelSignIn">
+            <h2 class="modal-heading">Welcome back!</h2>
+            <p class="modal-subheading">Log in to continue your dorm search.</p>
+            <div class="form-msg" id="signinMsg"></div>
+            <form onsubmit="handleSignIn(event)" novalidate>
+                <div class="form-group">
+                    <label class="form-label">Email address</label>
+                    <div class="form-input-wrap">
+                        <span class="form-input-icon">✉</span>
+                        <input class="form-input" type="email" id="signinEmail" placeholder="you@email.com" autocomplete="email">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <div class="form-input-wrap">
+                        <span class="form-input-icon">🔒</span>
+                        <input class="form-input" type="password" id="signinPassword" placeholder="Password" autocomplete="current-password">
+                    </div>
+                </div>
+                <a href="#" class="forgot-link">Forgot Password?</a>
+                <button type="submit" class="btn-modal-submit" id="signinBtn">Log In</button>
+            </form>
+            <p class="modal-switch">Don't have an account? <a onclick="switchTab('register')">Sign Up</a></p>
+        </div>
+
+        <!-- REGISTER -->
+        <div class="modal-panel" id="panelRegister">
+            <h2 class="modal-heading">Create your account</h2>
+            <p class="modal-subheading">Join DormFinder — it's free.</p>
+            <div class="form-msg" id="registerMsg"></div>
+            <form onsubmit="handleRegister(event)" novalidate>
+                <span class="role-label">I am a...</span>
+                <div class="role-options">
+                    <div class="role-option selected" id="roleStudent" onclick="selectRole('student')" tabindex="0">
+                        <span class="role-option-icon">👤</span>
+                        <span class="role-option-label">Student</span>
+                    </div>
+                    <div class="role-option" id="roleOwner" onclick="selectRole('owner')" tabindex="0">
+                        <span class="role-option-icon">🏢</span>
+                        <span class="role-option-label">Property Owner</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Full name</label>
+                    <div class="form-input-wrap">
+                        <span class="form-input-icon">👤</span>
+                        <input class="form-input" type="text" id="registerName" placeholder="Juan Dela Cruz" autocomplete="name">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email address</label>
+                    <div class="form-input-wrap">
+                        <span class="form-input-icon">✉</span>
+                        <input class="form-input" type="email" id="registerEmail" placeholder="you@email.com" autocomplete="email">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <div class="form-input-wrap">
+                        <span class="form-input-icon">🔒</span>
+                        <input class="form-input" type="password" id="registerPassword" placeholder="Min. 6 characters" autocomplete="new-password">
+                    </div>
+                </div>
+                <button type="submit" class="btn-modal-submit" id="registerBtn">Create Account</button>
+            </form>
+            <p class="modal-switch">Already have an account? <a onclick="switchTab('signin')">Sign in</a></p>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     BOOKING MODAL
+══════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="bookModal" role="dialog" aria-modal="true">
+    <div class="book-modal">
+        <button class="modal-close" onclick="closeBookModal()">&times;</button>
+        <h2 class="modal-heading" style="margin-bottom:6px">Book a Room</h2>
+        <p class="modal-subheading">Submit a booking request to the owner.</p>
+
+        <div class="book-dorm-info" id="bookDormInfo">
+            <span class="book-dorm-emoji" id="bookDormEmoji">🏠</span>
+            <div>
+                <div class="book-dorm-name" id="bookDormName">—</div>
+                <div class="book-dorm-price" id="bookDormPrice">—</div>
+            </div>
+        </div>
+
+        <div class="form-msg" id="bookMsg"></div>
+
+        <form onsubmit="handleBooking(event)" novalidate>
+            <p class="book-section-label">Move-in &amp; Move-out</p>
+            <div class="book-dates">
+                <div>
+                    <label class="form-label">Move-in Date</label>
+                    <input class="form-input" style="padding-left:14px" type="date" id="bookMoveIn" required>
+                </div>
+                <div>
+                    <label class="form-label">Move-out Date</label>
+                    <input class="form-input" style="padding-left:14px" type="date" id="bookMoveOut" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Message to Owner <span style="color:rgba(255,255,255,0.3);font-weight:400">(optional)</span></label>
+                <textarea class="form-input" id="bookMessage" placeholder="Introduce yourself or ask a question…" style="padding-left:14px;resize:vertical;min-height:80px"></textarea>
+            </div>
+            <div class="book-note">
+                ℹ️ Your request will be sent to the owner for review. You'll be notified once they respond.
+            </div>
+            <button type="submit" class="btn-modal-submit" id="bookBtn">Send Booking Request</button>
+        </form>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     LEAFLET MAP
+══════════════════════════════════════════════════ -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+/* ════════════════════════════════════════════════════
+   DORM DATA
+════════════════════════════════════════════════════ */
+const DORMS = [
+    { id:1, name:'Sunrise Dormitory',    type:'Dormitory',     loc:'Minglanilla, Cebu', dist:'0.3 km from school', price:3500, amenities:['WiFi','CCTV','Laundry'],          rating:4.5, avail:3,  emoji:'🏠', color:'#dbeafe', lat:10.2310, lng:123.7940 },
+    { id:2, name:'Villa Maria Suites',   type:'Boarding House', loc:'Minglanilla, Cebu', dist:'0.6 km from school', price:2800, amenities:['WiFi','Parking','Kitchen'],        rating:4.2, avail:5,  emoji:'🏡', color:'#fef9c3', lat:10.2350, lng:123.7980 },
+    { id:3, name:'Campus View Rooms',    type:'Apartment',     loc:'Minglanilla, Cebu', dist:'0.2 km from school', price:4200, amenities:['WiFi','CCTV','AC'],                 rating:4.8, avail:1,  emoji:'🏢', color:'#dcfce7', lat:10.2290, lng:123.7920 },
+    { id:4, name:'Green Haven Dorm',     type:'Dormitory',     loc:'Talisay, Cebu',     dist:'1.2 km from school', price:2500, amenities:['WiFi','Study Area','CCTV'],         rating:3.9, avail:7,  emoji:'🌿', color:'#dbeafe', lat:10.2450, lng:123.8050 },
+    { id:5, name:'BlueSky Residences',   type:'Apartment',     loc:'Talisay, Cebu',     dist:'0.8 km from school', price:5000, amenities:['WiFi','AC','CCTV'],                 rating:4.9, avail:2,  emoji:'🌤️', color:'#dcfce7', lat:10.2410, lng:123.8020 },
+    { id:6, name:'Homey Boardinghouse',  type:'Boarding House', loc:'Minglanilla, Cebu', dist:'0.5 km from school', price:1800, amenities:['WiFi','Kitchen'],                  rating:3.7, avail:4,  emoji:'🏘️', color:'#fef9c3', lat:10.2270, lng:123.7900 },
+];
+
+let currentFilter = 'all';
+let priceMin = 0, priceMax = Infinity;
+let currentDormId = null;
+
+/* ════════════════════════════════════════════════════
+   SESSION (simple in-memory, backed by sessionStorage)
+════════════════════════════════════════════════════ */
+let currentUser = JSON.parse(sessionStorage.getItem('df_user') || 'null');
+
+function saveSession(user) {
+    currentUser = user;
+    sessionStorage.setItem('df_user', JSON.stringify(user));
+    updateNavUser();
+}
+
+function handleLogout() {
+    currentUser = null;
+    sessionStorage.removeItem('df_user');
+    updateNavUser();
+}
+
+function updateNavUser() {
+    const pill     = document.getElementById('userPill');
+    const pillName = document.getElementById('userPillName');
+    const si       = document.getElementById('navSignIn');
+    const su       = document.getElementById('navSignUp');
+    if (currentUser) {
+        pill.classList.add('visible');
+        pillName.textContent = currentUser.name;
+        si.style.display = 'none';
+        su.style.display = 'none';
+    } else {
+        pill.classList.remove('visible');
+        si.style.display = '';
+        su.style.display = '';
+    }
+}
+updateNavUser();
+
+/* ════════════════════════════════════════════════════
+   RENDER DORM CARDS
+════════════════════════════════════════════════════ */
+function badgeClass(type) {
+    return type === 'Dormitory' ? 'badge-dorm' : type === 'Boarding House' ? 'badge-bh' : 'badge-apt';
+}
+function availClass(n) {
+    return n >= 3 ? 'avail-green' : n === 1 ? 'avail-red' : 'avail-yellow';
+}
+function availText(n) {
+    return n === 1 ? '1 slot left' : `${n} available`;
+}
+
+function renderDorms(list) {
+    const grid = document.getElementById('dormGrid');
+    document.getElementById('resultCount').textContent = list.length;
+    if (!list.length) {
+        grid.innerHTML = '<p style="color:rgba(255,255,255,0.4);padding:32px 0">No dorms match your filters.</p>';
+        return;
+    }
+    grid.innerHTML = list.map(d => `
+        <div class="dorm-card" onclick="openBooking(${d.id})">
+            <div class="dorm-thumb" style="background:${d.color}20">
+                <span>${d.emoji}</span>
+                <span class="dorm-badge-type ${badgeClass(d.type)}">${d.type}</span>
+                <button class="dorm-fav" onclick="event.stopPropagation()" aria-label="Favourite">♡</button>
+            </div>
+            <div class="dorm-body">
+                <div class="dorm-name">${d.name}</div>
+                <div class="dorm-loc">📍 ${d.loc} · ${d.dist}</div>
+                <div class="dorm-price">₱${d.price.toLocaleString()}<span>/month</span></div>
+                <div class="dorm-amenities">
+                    ${d.amenities.map(a => `<span class="amenity-tag">${a}</span>`).join('')}
+                </div>
+                <div class="dorm-footer">
+                    <span class="dorm-rating"><span class="star">★</span> ${d.rating}</span>
+                    <span class="dorm-avail ${availClass(d.avail)}">${availText(d.avail)}</span>
+                </div>
+            </div>
+        </div>`).join('');
+}
+
+function getFilteredDorms() {
+    return DORMS.filter(d => {
+        const matchFilter = currentFilter === 'all' ||
+            d.loc.includes(currentFilter) || d.type === currentFilter;
+        const matchPrice  = d.price >= priceMin && d.price <= priceMax;
+        return matchFilter && matchPrice;
+    });
+}
+
+function filterDorms(val, btn) {
+    currentFilter = val;
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    renderDorms(getFilteredDorms());
+}
+
+function applyPriceFilter() {
+    priceMin = parseInt(document.getElementById('priceMin').value) || 0;
+    priceMax = parseInt(document.getElementById('priceMax').value) || Infinity;
+    renderDorms(getFilteredDorms());
+}
+
+renderDorms(DORMS);
+
+/* ════════════════════════════════════════════════════
+   SCROLL TO BROWSE
+════════════════════════════════════════════════════ */
+function scrollToBrowse() {
+    document.getElementById('browse').scrollIntoView({ behavior: 'smooth' });
+}
+
+/* ════════════════════════════════════════════════════
+   LEAFLET MAP
+════════════════════════════════════════════════════ */
+const map = L.map('map').setView([10.2330, 123.7950], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+DORMS.forEach(d => {
+    L.marker([d.lat, d.lng])
+     .addTo(map)
+     .bindPopup(`<strong>${d.name}</strong><br>₱${d.price.toLocaleString()}/mo`);
+});
+
+/* ════════════════════════════════════════════════════
+   AUTH MODAL
+════════════════════════════════════════════════════ */
+let pendingBookingId = null;
+
+function openModal(tab) {
+    switchTab(tab || 'signin');
+    document.getElementById('authModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+function closeModal() {
+    document.getElementById('authModal').classList.remove('active');
+    document.body.style.overflow = '';
+    clearMsgs();
+}
+document.getElementById('authModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+document.getElementById('modalClose').addEventListener('click', closeModal);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeBookModal(); } });
+
+function switchTab(tab) {
+    const s = tab === 'signin';
+    document.getElementById('tabSignIn').classList.toggle('active', s);
+    document.getElementById('tabRegister').classList.toggle('active', !s);
+    document.getElementById('panelSignIn').classList.toggle('active', s);
+    document.getElementById('panelRegister').classList.toggle('active', !s);
+    clearMsgs();
+}
+
+let selectedRole = 'student';
+function selectRole(role) {
+    selectedRole = role;
+    document.getElementById('roleStudent').classList.toggle('selected', role === 'student');
+    document.getElementById('roleOwner').classList.toggle('selected', role === 'owner');
+}
+
+function showMsg(id, type, msg) {
+    const el = document.getElementById(id);
+    el.className = `form-msg ${type} visible`;
+    el.textContent = msg;
+}
+function clearMsgs() {
+    ['signinMsg','registerMsg','bookMsg'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.className = 'form-msg'; el.textContent = ''; }
+    });
+}
+
+async function handleSignIn(e) {
+    e.preventDefault();
+    clearMsgs();
+    const email    = document.getElementById('signinEmail').value.trim();
+    const password = document.getElementById('signinPassword').value;
+    const btn      = document.getElementById('signinBtn');
+    if (!email || !password) { showMsg('signinMsg','error','Please fill in all fields.'); return; }
+    btn.disabled = true; btn.textContent = 'Please wait…';
+    try {
+        const res  = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email,password}) });
+        const data = await res.json();
+        if (data.success) {
+            saveSession(data.user);
+            showMsg('signinMsg','success', data.message);
+            setTimeout(() => {
+                closeModal();
+                // redirect to role-based dashboard
+                if (data.user.role === 'owner') {
+                    window.location.href = '/owner_dashboard';
+                } else {
+                    window.location.href = '/student_dashboard';
+                }
+            }, 900);
+        } else { showMsg('signinMsg','error', data.message); }
+    } catch { showMsg('signinMsg','error','Cannot connect to server.'); }
+    finally { btn.disabled = false; btn.textContent = 'Log In'; }
+}
+
+async function handleRegister(e) {
+    e.preventDefault();
+    clearMsgs();
+    const name     = document.getElementById('registerName').value.trim();
+    const email    = document.getElementById('registerEmail').value.trim();
+    const password = document.getElementById('registerPassword').value;
+    const btn      = document.getElementById('registerBtn');
+    if (!name || !email || !password) { showMsg('registerMsg','error','Please fill in all fields.'); return; }
+    if (password.length < 6)          { showMsg('registerMsg','error','Password must be at least 6 characters.'); return; }
+    btn.disabled = true; btn.textContent = 'Please wait…';
+    try {
+        const res  = await fetch('/api/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name,email,password,role:selectedRole}) });
+        const data = await res.json();
+        if (data.success) {
+            showMsg('registerMsg','success', data.message + ' You can now sign in.');
+            document.getElementById('registerName').value = '';
+            document.getElementById('registerEmail').value = '';
+            document.getElementById('registerPassword').value = '';
+            setTimeout(() => switchTab('signin'), 1400);
+        } else { showMsg('registerMsg','error', data.message); }
+    } catch { showMsg('registerMsg','error','Cannot connect to server.'); }
+    finally { btn.disabled = false; btn.textContent = 'Create Account'; }
+}
+
+/* ════════════════════════════════════════════════════
+   BOOKING MODAL
+════════════════════════════════════════════════════ */
+function openBooking(dormId) {
+    // gate: must be logged in
+    if (!currentUser) {
+        pendingBookingId = dormId;
+        openModal('signin');
+        showMsg('signinMsg','error','Please sign in to book a dorm.');
+        return;
+    }
+    const dorm = DORMS.find(d => d.id === dormId);
+    if (!dorm) return;
+    currentDormId = dormId;
+    document.getElementById('bookDormEmoji').textContent = dorm.emoji;
+    document.getElementById('bookDormName').textContent  = dorm.name;
+    document.getElementById('bookDormPrice').textContent = `₱${dorm.price.toLocaleString()}/month · ${dorm.loc}`;
+    // default dates
+    const today = new Date();
+    const nextM = new Date(today); nextM.setMonth(nextM.getMonth()+1);
+    document.getElementById('bookMoveIn').value  = today.toISOString().split('T')[0];
+    document.getElementById('bookMoveOut').value = nextM.toISOString().split('T')[0];
+    document.getElementById('bookMessage').value = '';
+    clearMsgs();
+    document.getElementById('bookModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeBookModal() {
+    document.getElementById('bookModal').classList.remove('active');
+    document.body.style.overflow = '';
+    clearMsgs();
+}
+document.getElementById('bookModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeBookModal(); });
+
+async function handleBooking(e) {
+    e.preventDefault();
+    clearMsgs();
+    const moveIn  = document.getElementById('bookMoveIn').value;
+    const moveOut = document.getElementById('bookMoveOut').value;
+    const message = document.getElementById('bookMessage').value.trim();
+    const btn     = document.getElementById('bookBtn');
+    if (!moveIn || !moveOut) { showMsg('bookMsg','error','Please select move-in and move-out dates.'); return; }
+    if (moveOut <= moveIn)   { showMsg('bookMsg','error','Move-out date must be after move-in date.'); return; }
+    btn.disabled = true; btn.textContent = 'Sending…';
+    try {
+        const res  = await fetch('/api/book', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ dorm_id: currentDormId, user_id: currentUser.id, move_in: moveIn, move_out: moveOut, message })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showMsg('bookMsg','success','✅ Booking request sent! The owner will review it shortly.');
+            btn.textContent = 'Request Sent';
+        } else { showMsg('bookMsg','error', data.message); btn.disabled = false; btn.textContent = 'Send Booking Request'; }
+    } catch { showMsg('bookMsg','error','Cannot connect to server.'); btn.disabled = false; btn.textContent = 'Send Booking Request'; }
+}
+</script>
+</body>
+</html>

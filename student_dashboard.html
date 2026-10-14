@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard — DormFinder</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { font-family:'Inter',sans-serif; background:#060f2e; color:#fff; display:flex; min-height:100vh; }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+        width:240px; flex-shrink:0; background:#07112e;
+        border-right:1px solid rgba(255,255,255,0.07);
+        display:flex; flex-direction:column;
+        position:fixed; top:0; left:0; bottom:0; z-index:40;
+    }
+    .sidebar-logo {
+        display:flex; align-items:center; gap:10px;
+        padding:24px 20px 20px; border-bottom:1px solid rgba(255,255,255,0.06);
+        text-decoration:none;
+    }
+    .sidebar-logo-icon {
+        width:34px; height:34px; background:#2563eb; border-radius:8px;
+        display:flex; align-items:center; justify-content:center; font-size:16px;
+    }
+    .sidebar-logo-text { font-size:16px; font-weight:700; }
+    .sidebar-logo-text span { color:#f59e0b; }
+    .sidebar-user {
+        padding:16px 20px; border-bottom:1px solid rgba(255,255,255,0.06);
+        display:flex; align-items:center; gap:12px;
+    }
+    .sidebar-avatar {
+        width:38px; height:38px; background:#2563eb; border-radius:50%;
+        display:flex; align-items:center; justify-content:center;
+        font-size:16px; font-weight:700; flex-shrink:0;
+    }
+    .sidebar-user-name { font-size:13px; font-weight:700; color:#fff; }
+    .sidebar-user-role {
+        font-size:11px; color:rgba(255,255,255,0.4);
+        background:rgba(37,99,235,0.2); border-radius:4px;
+        padding:2px 6px; display:inline-block; margin-top:2px;
+    }
+    .sidebar-nav { flex:1; padding:16px 12px; display:flex; flex-direction:column; gap:4px; }
+    .nav-item {
+        display:flex; align-items:center; gap:10px; padding:10px 12px;
+        border-radius:8px; cursor:pointer; transition:background 0.2s;
+        font-size:13px; font-weight:500; color:rgba(255,255,255,0.6);
+        border:none; background:transparent; font-family:'Inter',sans-serif;
+        width:100%; text-align:left;
+    }
+    .nav-item:hover { background:rgba(255,255,255,0.06); color:#fff; }
+    .nav-item.active { background:rgba(37,99,235,0.2); color:#fff; }
+    .nav-item .nav-icon { font-size:16px; width:20px; text-align:center; }
+    .sidebar-bottom { padding:16px 12px; border-top:1px solid rgba(255,255,255,0.06); }
+    .btn-logout-side {
+        display:flex; align-items:center; gap:10px; padding:10px 12px;
+        border-radius:8px; cursor:pointer; transition:background 0.2s;
+        font-size:13px; font-weight:500; color:rgba(255,255,255,0.5);
+        border:none; background:transparent; font-family:'Inter',sans-serif;
+        width:100%;
+    }
+    .btn-logout-side:hover { background:rgba(239,68,68,0.12); color:#f87171; }
+
+    /* ── MAIN CONTENT ── */
+    .main { margin-left:240px; flex:1; display:flex; flex-direction:column; min-height:100vh; }
+
+    /* top bar */
+    .topbar {
+        padding:20px 40px; border-bottom:1px solid rgba(255,255,255,0.06);
+        display:flex; align-items:center; justify-content:space-between;
+        background:#060f2e; position:sticky; top:0; z-index:30;
+    }
+    .topbar-title { font-size:20px; font-weight:800; }
+    .topbar-sub { font-size:13px; color:rgba(255,255,255,0.4); margin-top:2px; }
+    .topbar-actions { display:flex; gap:10px; }
+    .btn-primary {
+        padding:9px 18px; background:#2563eb; color:#fff; border:none;
+        border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;
+        font-family:'Inter',sans-serif; transition:background 0.2s;
+    }
+    .btn-primary:hover { background:#1d4ed8; }
+
+    /* page content */
+    .page { display:none; padding:36px 40px; }
+    .page.active { display:block; }
+
+    /* ── STAT CARDS ── */
+    .stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:32px; }
+    .stat-card {
+        background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+        border-radius:14px; padding:20px 22px;
+    }
+    .stat-card-label { font-size:12px; color:rgba(255,255,255,0.45); margin-bottom:8px; font-weight:500; }
+    .stat-card-value { font-size:26px; font-weight:800; color:#fff; }
+    .stat-card-sub { font-size:12px; color:rgba(255,255,255,0.35); margin-top:4px; }
+    .stat-card-icon { font-size:24px; margin-bottom:10px; }
+
+    /* ── SECTION HEADER ── */
+    .sec-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+    .sec-title { font-size:16px; font-weight:700; }
+    .sec-link { font-size:13px; color:#3b82f6; cursor:pointer; background:none; border:none; font-family:'Inter',sans-serif; }
+
+    /* ── DORM CARDS (browse tab) ── */
+    .dorm-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+    .dorm-card {
+        border-radius:14px; overflow:hidden; border:1px solid rgba(255,255,255,0.08);
+        background:rgba(255,255,255,0.03); transition:transform 0.2s,border-color 0.2s;
+        cursor:pointer;
+    }
+    .dorm-card:hover { transform:translateY(-4px); border-color:rgba(37,99,235,0.5); }
+    .dorm-thumb { height:120px; display:flex; align-items:center; justify-content:center; font-size:42px; position:relative; }
+    .dorm-badge {
+        position:absolute; top:10px; left:10px; padding:3px 9px;
+        border-radius:5px; font-size:11px; font-weight:700;
+    }
+    .badge-dorm { background:rgba(37,99,235,0.85); }
+    .badge-bh   { background:rgba(245,158,11,0.85); }
+    .badge-apt  { background:rgba(16,185,129,0.85); }
+    .dorm-body { padding:14px; }
+    .dorm-name { font-size:14px; font-weight:700; margin-bottom:3px; }
+    .dorm-loc  { font-size:12px; color:rgba(255,255,255,0.4); margin-bottom:8px; }
+    .dorm-price { font-size:16px; font-weight:800; margin-bottom:8px; }
+    .dorm-price span { font-size:11px; font-weight:400; color:rgba(255,255,255,0.4); }
+    .dorm-tags { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px; }
+    .tag { padding:2px 7px; background:rgba(255,255,255,0.07); border-radius:4px; font-size:11px; color:rgba(255,255,255,0.55); }
+    .dorm-foot { display:flex; align-items:center; justify-content:space-between; }
+    .dorm-rating { font-size:12px; }
+    .star { color:#f59e0b; }
+    .avail { font-size:11px; font-weight:700; padding:3px 8px; border-radius:5px; }
+    .avail-g { background:rgba(34,197,94,0.15); color:#4ade80; }
+    .avail-y { background:rgba(245,158,11,0.15); color:#fbbf24; }
+    .avail-r { background:rgba(239,68,68,0.15); color:#f87171; }
+    .btn-book {
+        width:100%; margin-top:10px; padding:9px; background:#2563eb; color:#fff;
+        border:none; border-radius:8px; font-size:13px; font-weight:600;
+        cursor:pointer; font-family:'Inter',sans-serif; transition:background 0.2s;
+    }
+    .btn-book:hover { background:#1d4ed8; }
+
+    /* ── BOOKING LIST ── */
+    .booking-list { display:flex; flex-direction:column; gap:12px; }
+    .booking-item {
+        background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+        border-radius:12px; padding:18px 20px;
+        display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+    }
+    .booking-emoji { font-size:28px; }
+    .booking-info { flex:1; min-width:160px; }
+    .booking-name { font-size:14px; font-weight:700; margin-bottom:3px; }
+    .booking-dates { font-size:12px; color:rgba(255,255,255,0.45); }
+    .booking-status {
+        padding:5px 12px; border-radius:6px; font-size:12px; font-weight:700;
+    }
+    .status-pending  { background:rgba(245,158,11,0.15); color:#fbbf24; }
+    .status-approved { background:rgba(34,197,94,0.15);  color:#4ade80; }
+    .status-rejected { background:rgba(239,68,68,0.15);  color:#f87171; }
+
+    /* ── PROFILE FORM ── */
+    .profile-card {
+        background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+        border-radius:14px; padding:28px; max-width:560px;
+    }
+    .profile-avatar-row { display:flex; align-items:center; gap:18px; margin-bottom:28px; }
+    .profile-avatar-big {
+        width:72px; height:72px; background:#2563eb; border-radius:50%;
+        display:flex; align-items:center; justify-content:center;
+        font-size:28px; font-weight:800; flex-shrink:0;
+    }
+    .pf-group { margin-bottom:16px; }
+    .pf-label { display:block; font-size:12px; font-weight:600; color:rgba(255,255,255,0.5); margin-bottom:6px; }
+    .pf-input {
+        width:100%; padding:10px 14px; background:rgba(255,255,255,0.06);
+        border:1.5px solid rgba(255,255,255,0.1); border-radius:8px;
+        color:#fff; font-size:14px; font-family:'Inter',sans-serif; outline:none;
+    }
+    .pf-input:focus { border-color:#2563eb; }
+    .pf-input:disabled { opacity:0.5; cursor:not-allowed; }
+    .pf-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+
+    /* ── EMPTY STATE ── */
+    .empty { text-align:center; padding:60px 20px; color:rgba(255,255,255,0.3); }
+    .empty-icon { font-size:48px; margin-bottom:12px; }
+    .empty p { font-size:14px; }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+        display:none; position:fixed; inset:0;
+        background:rgba(3,10,35,0.8); backdrop-filter:blur(8px);
+        z-index:200; align-items:center; justify-content:center;
+    }
+    .modal-overlay.active { display:flex; }
+    .modal {
+        background:#0d1b3e; border:1px solid rgba(255,255,255,0.08);
+        border-radius:18px; padding:32px; width:100%; max-width:460px;
+        position:relative; animation:mIn 0.2s ease; max-height:90vh; overflow-y:auto;
+    }
+    @keyframes mIn { from{opacity:0;transform:translateY(-12px)} to{opacity:1;transform:none} }
+    .modal-close {
+        position:absolute; top:14px; right:14px;
+        background:rgba(255,255,255,0.08); border:none; color:rgba(255,255,255,0.6);
+        width:28px; height:28px; border-radius:7px; cursor:pointer; font-size:15px;
+        display:flex; align-items:center; justify-content:center;
+    }
+    .modal-close:hover { background:rgba(255,255,255,0.15); color:#fff; }
+    .modal-heading { font-size:20px; font-weight:800; margin-bottom:4px; }
+    .modal-sub { font-size:13px; color:rgba(255,255,255,0.45); margin-bottom:22px; }
+    .form-msg { display:none; border-radius:8px; padding:10px 14px; font-size:13px; margin-bottom:14px; }
+    .form-msg.visible { display:block; }
+    .form-msg.error   { background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.35); color:#fca5a5; }
+    .form-msg.success { background:rgba(34,197,94,0.15);  border:1px solid rgba(34,197,94,0.35);  color:#86efac; }
+    .book-dorm-info {
+        background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+        border-radius:10px; padding:14px; margin-bottom:20px;
+        display:flex; align-items:center; gap:12px;
+    }
+    .f-group { margin-bottom:14px; }
+    .f-label { display:block; font-size:12px; font-weight:600; color:rgba(255,255,255,0.6); margin-bottom:6px; }
+    .f-input {
+        width:100%; padding:10px 14px; background:rgba(255,255,255,0.06);
+        border:1.5px solid rgba(255,255,255,0.1); border-radius:8px;
+        color:#fff; font-size:14px; font-family:'Inter',sans-serif; outline:none;
+    }
+    .f-input:focus { border-color:#2563eb; }
+    .f-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px; }
+    .book-note {
+        background:rgba(37,99,235,0.1); border:1px solid rgba(37,99,235,0.3);
+        border-radius:8px; padding:10px 14px; font-size:12px;
+        color:rgba(255,255,255,0.55); margin-bottom:18px;
+    }
+    .btn-submit {
+        width:100%; padding:13px; background:#2563eb; color:#fff; border:none;
+        border-radius:9px; font-size:14px; font-weight:700; cursor:pointer;
+        font-family:'Inter',sans-serif; transition:background 0.2s;
+    }
+    .btn-submit:hover { background:#1d4ed8; }
+
+    @media(max-width:900px) {
+        .sidebar { display:none; }
+        .main { margin-left:0; }
+        .stats-row { grid-template-columns:repeat(2,1fr); }
+        .dorm-grid { grid-template-columns:repeat(2,1fr); }
+        .page { padding:24px; }
+        .topbar { padding:16px 24px; }
+    }
+    @media(max-width:560px) {
+        .dorm-grid { grid-template-columns:1fr; }
+        .stats-row { grid-template-columns:1fr 1fr; }
+        .pf-row,.f-row { grid-template-columns:1fr; }
+    }
+    </style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar">
+    <a href="/" class="sidebar-logo">
+        <div class="sidebar-logo-icon">🏠</div>
+        <span class="sidebar-logo-text">Dorm <span>Finder</span></span>
+    </a>
+    <div class="sidebar-user">
+        <div class="sidebar-avatar" id="sideAvatar">?</div>
+        <div>
+            <div class="sidebar-user-name" id="sideName">Loading…</div>
+            <span class="sidebar-user-role">Student</span>
+        </div>
+    </div>
+    <nav class="sidebar-nav">
+        <button class="nav-item active" onclick="showPage('overview',this)">
+            <span class="nav-icon">🏠</span> Overview
+        </button>
+        <button class="nav-item" onclick="showPage('browse',this)">
+            <span class="nav-icon">🔍</span> Browse Dorms
+        </button>
+        <button class="nav-item" onclick="showPage('bookings',this)">
+            <span class="nav-icon">📋</span> My Bookings
+        </button>
+        <button class="nav-item" onclick="showPage('profile',this)">
+            <span class="nav-icon">👤</span> Profile
+        </button>
+    </nav>
+    <div class="sidebar-bottom">
+        <button class="btn-logout-side" onclick="logout()">
+            <span>🚪</span> Log Out
+        </button>
+    </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<div class="main">
+    <div class="topbar">
+        <div>
+            <div class="topbar-title" id="pageTitle">Overview</div>
+            <div class="topbar-sub" id="pageSubtitle">Welcome back!</div>
+        </div>
+        <div class="topbar-actions">
+            <button class="btn-primary" onclick="showPage('browse', document.querySelector('.nav-item:nth-child(2)'))">🔍 Browse Dorms</button>
+        </div>
+    </div>
+
+    <!-- OVERVIEW PAGE -->
+    <div class="page active" id="page-overview">
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-card-icon">📋</div>
+                <div class="stat-card-label">Total Bookings</div>
+                <div class="stat-card-value" id="statTotal">0</div>
+                <div class="stat-card-sub">All time</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon">⏳</div>
+                <div class="stat-card-label">Pending</div>
+                <div class="stat-card-value" id="statPending">0</div>
+                <div class="stat-card-sub">Awaiting response</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon">✅</div>
+                <div class="stat-card-label">Approved</div>
+                <div class="stat-card-value" id="statApproved">0</div>
+                <div class="stat-card-sub">Confirmed stays</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-icon">🔍</div>
+                <div class="stat-card-label">Dorms Available</div>
+                <div class="stat-card-value">6</div>
+                <div class="stat-card-sub">Near your campus</div>
+            </div>
+        </div>
+
+        <div class="sec-header">
+            <span class="sec-title">Recent Bookings</span>
+            <button class="sec-link" onclick="showPage('bookings', document.querySelectorAll('.nav-item')[2])">View all →</button>
+        </div>
+        <div id="overviewBookings"></div>
+
+        <div class="sec-header" style="margin-top:32px">
+            <span class="sec-title">Recommended Dorms</span>
+            <button class="sec-link" onclick="showPage('browse', document.querySelectorAll('.nav-item')[1])">See all →</button>
+        </div>
+        <div class="dorm-grid" id="overviewDorms"></div>
+    </div>
+
+    <!-- BROWSE PAGE -->
+    <div class="page" id="page-browse">
+        <div class="dorm-grid" id="browseDorms"></div>
+    </div>
+
+    <!-- BOOKINGS PAGE -->
+    <div class="page" id="page-bookings">
+        <div id="bookingsList"></div>
+    </div>
+
+    <!-- PROFILE PAGE -->
+    <div class="page" id="page-profile">
+        <div class="profile-card">
+            <div class="profile-avatar-row">
+                <div class="profile-avatar-big" id="profileAvatar">?</div>
+                <div>
+                    <div style="font-size:18px;font-weight:800" id="profileName">—</div>
+                    <div style="font-size:13px;color:rgba(255,255,255,0.4);margin-top:4px">Student Account</div>
+                </div>
+            </div>
+            <div class="pf-row">
+                <div class="pf-group">
+                    <label class="pf-label">Full Name</label>
+                    <input class="pf-input" id="pfName" placeholder="Your name" disabled>
+                </div>
+                <div class="pf-group">
+                    <label class="pf-label">Role</label>
+                    <input class="pf-input" value="Student" disabled>
+                </div>
+            </div>
+            <div class="pf-group">
+                <label class="pf-label">Email Address</label>
+                <input class="pf-input" id="pfEmail" placeholder="your@email.com" disabled>
+            </div>
+            <div class="pf-group">
+                <label class="pf-label">Member Since</label>
+                <input class="pf-input" id="pfSince" disabled>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- BOOKING MODAL -->
+<div class="modal-overlay" id="bookModal">
+    <div class="modal">
+        <button class="modal-close" onclick="closeBookModal()">×</button>
+        <h2 class="modal-heading">Book a Room</h2>
+        <p class="modal-sub">Submit a booking request to the owner.</p>
+        <div class="book-dorm-info" id="bookDormInfo">
+            <span id="bookEmoji" style="font-size:28px">🏠</span>
+            <div>
+                <div style="font-size:14px;font-weight:700" id="bookName">—</div>
+                <div style="font-size:12px;color:rgba(255,255,255,0.45)" id="bookPrice">—</div>
+            </div>
+        </div>
+        <div class="form-msg" id="bookMsg"></div>
+        <form onsubmit="submitBooking(event)" novalidate>
+            <div class="f-row">
+                <div>
+                    <label class="f-label">Move-in Date</label>
+                    <input class="f-input" type="date" id="moveIn" required>
+                </div>
+                <div>
+                    <label class="f-label">Move-out Date</label>
+                    <input class="f-input" type="date" id="moveOut" required>
+                </div>
+            </div>
+            <div class="f-group">
+                <label class="f-label">Message to Owner <span style="color:rgba(255,255,255,0.3)">(optional)</span></label>
+                <textarea class="f-input" id="bookMsgText" placeholder="Introduce yourself…" style="resize:vertical;min-height:72px"></textarea>
+            </div>
+            <div class="book-note">ℹ️ The owner will review your request and respond shortly.</div>
+            <button type="submit" class="btn-submit" id="bookBtn">Send Booking Request</button>
+        </form>
+    </div>
+</div>
+
+<script>
+/* ── DORM DATA ── */
+const DORMS = [
+    { id:1, name:'Sunrise Dormitory',   type:'Dormitory',     loc:'Minglanilla, Cebu', dist:'0.3 km', price:3500, amenities:['WiFi','CCTV','Laundry'], rating:4.5, avail:3,  emoji:'🏠', bg:'#dbeafe20' },
+    { id:2, name:'Villa Maria Suites',  type:'Boarding House', loc:'Minglanilla, Cebu', dist:'0.6 km', price:2800, amenities:['WiFi','Parking','Kitchen'], rating:4.2, avail:5,  emoji:'🏡', bg:'#fef9c320' },
+    { id:3, name:'Campus View Rooms',   type:'Apartment',     loc:'Minglanilla, Cebu', dist:'0.2 km', price:4200, amenities:['WiFi','CCTV','AC'],         rating:4.8, avail:1,  emoji:'🏢', bg:'#dcfce720' },
+    { id:4, name:'Green Haven Dorm',    type:'Dormitory',     loc:'Talisay, Cebu',     dist:'1.2 km', price:2500, amenities:['WiFi','Study Area','CCTV'],  rating:3.9, avail:7,  emoji:'🌿', bg:'#dbeafe20' },
+    { id:5, name:'BlueSky Residences',  type:'Apartment',     loc:'Talisay, Cebu',     dist:'0.8 km', price:5000, amenities:['WiFi','AC','CCTV'],          rating:4.9, avail:2,  emoji:'🌤️', bg:'#dcfce720' },
+    { id:6, name:'Homey Boardinghouse', type:'Boarding House', loc:'Minglanilla, Cebu', dist:'0.5 km', price:1800, amenities:['WiFi','Kitchen'],            rating:3.7, avail:4,  emoji:'🏘️', bg:'#fef9c320' },
+];
+
+/* ── SESSION ── */
+const user = JSON.parse(sessionStorage.getItem('df_user') || 'null');
+if (!user || user.role !== 'student') { window.location.href = '/'; }
+
+// populate UI
+document.getElementById('sideName').textContent      = user.name;
+document.getElementById('sideAvatar').textContent    = user.name.charAt(0).toUpperCase();
+document.getElementById('profileAvatar').textContent = user.name.charAt(0).toUpperCase();
+document.getElementById('profileName').textContent   = user.name;
+document.getElementById('pfName').value  = user.name;
+document.getElementById('pfEmail').value = user.email || '—';
+document.getElementById('pfSince').value = new Date().toLocaleDateString('en-PH', {year:'numeric',month:'long',day:'numeric'});
+document.getElementById('pageSubtitle').textContent = `Welcome back, ${user.name}!`;
+
+/* ── NAV ── */
+function showPage(id, btn) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('page-' + id).classList.add('active');
+    if (btn) btn.classList.add('active');
+    const titles = { overview:'Overview', browse:'Browse Dorms', bookings:'My Bookings', profile:'Profile' };
+    document.getElementById('pageTitle').textContent = titles[id] || id;
+}
+
+/* ── LOGOUT ── */
+function logout() {
+    sessionStorage.removeItem('df_user');
+    window.location.href = '/';
+}
+
+/* ── RENDER DORMS ── */
+function badgeClass(t) { return t==='Dormitory'?'badge-dorm':t==='Boarding House'?'badge-bh':'badge-apt'; }
+function availClass(n) { return n>=3?'avail-g':n===1?'avail-r':'avail-y'; }
+function availText(n)  { return n===1?'1 slot left':`${n} available`; }
+
+function dormCardHTML(d) {
+    return `<div class="dorm-card">
+        <div class="dorm-thumb" style="background:${d.bg}">
+            <span>${d.emoji}</span>
+            <span class="dorm-badge ${badgeClass(d.type)}">${d.type}</span>
+        </div>
+        <div class="dorm-body">
+            <div class="dorm-name">${d.name}</div>
+            <div class="dorm-loc">📍 ${d.loc} · ${d.dist}</div>
+            <div class="dorm-price">₱${d.price.toLocaleString()}<span>/month</span></div>
+            <div class="dorm-tags">${d.amenities.map(a=>`<span class="tag">${a}</span>`).join('')}</div>
+            <div class="dorm-foot">
+                <span class="dorm-rating"><span class="star">★</span> ${d.rating}</span>
+                <span class="avail ${availClass(d.avail)}">${availText(d.avail)}</span>
+            </div>
+            <button class="btn-book" onclick="openBookModal(${d.id})">Book This Room</button>
+        </div>
+    </div>`;
+}
+
+document.getElementById('browseDorms').innerHTML   = DORMS.map(dormCardHTML).join('');
+document.getElementById('overviewDorms').innerHTML = DORMS.slice(0,3).map(dormCardHTML).join('');
+
+/* ── BOOKINGS ── */
+let bookings = [];
+
+async function loadBookings() {
+    try {
+        const res  = await fetch(`/api/my_bookings?user_id=${user.id}`);
+        const data = await res.json();
+        bookings = data.bookings || [];
+    } catch { bookings = []; }
+    renderBookings();
+    renderStats();
+}
+
+function renderStats() {
+    const total    = bookings.length;
+    const pending  = bookings.filter(b=>b.status==='pending').length;
+    const approved = bookings.filter(b=>b.status==='approved').length;
+    document.getElementById('statTotal').textContent   = total;
+    document.getElementById('statPending').textContent = pending;
+    document.getElementById('statApproved').textContent= approved;
+}
+
+function bookingItemHTML(b) {
+    const dorm = DORMS.find(d=>d.id===b.dorm_id) || { name:'Unknown Dorm', emoji:'🏠' };
+    const sc   = { pending:'status-pending', approved:'status-approved', rejected:'status-rejected' }[b.status] || 'status-pending';
+    return `<div class="booking-item">
+        <span class="booking-emoji">${dorm.emoji}</span>
+        <div class="booking-info">
+            <div class="booking-name">${dorm.name}</div>
+            <div class="booking-dates">📅 ${b.move_in} → ${b.move_out}</div>
+        </div>
+        <span class="booking-status ${sc}">${b.status.charAt(0).toUpperCase()+b.status.slice(1)}</span>
+    </div>`;
+}
+
+function renderBookings() {
+    const full = document.getElementById('bookingsList');
+    const prev = document.getElementById('overviewBookings');
+    if (!bookings.length) {
+        const empty = `<div class="empty"><div class="empty-icon">📋</div><p>No bookings yet. Browse dorms to get started!</p></div>`;
+        full.innerHTML = empty;
+        prev.innerHTML = empty;
+        return;
+    }
+    full.innerHTML = `<div class="booking-list">${bookings.map(bookingItemHTML).join('')}</div>`;
+    prev.innerHTML = `<div class="booking-list">${bookings.slice(0,3).map(bookingItemHTML).join('')}</div>`;
+}
+
+loadBookings();
+
+/* ── BOOKING MODAL ── */
+let activeDormId = null;
+
+function openBookModal(dormId) {
+    const dorm = DORMS.find(d=>d.id===dormId);
+    if (!dorm) return;
+    activeDormId = dormId;
+    document.getElementById('bookEmoji').textContent = dorm.emoji;
+    document.getElementById('bookName').textContent  = dorm.name;
+    document.getElementById('bookPrice').textContent = `₱${dorm.price.toLocaleString()}/month · ${dorm.loc}`;
+    const today = new Date();
+    const next  = new Date(today); next.setMonth(next.getMonth()+1);
+    document.getElementById('moveIn').value  = today.toISOString().split('T')[0];
+    document.getElementById('moveOut').value = next.toISOString().split('T')[0];
+    document.getElementById('bookMsgText').value = '';
+    const m = document.getElementById('bookMsg');
+    m.className='form-msg'; m.textContent='';
+    document.getElementById('bookModal').classList.add('active');
+    document.body.style.overflow='hidden';
+}
+
+function closeBookModal() {
+    document.getElementById('bookModal').classList.remove('active');
+    document.body.style.overflow='';
+}
+document.getElementById('bookModal').addEventListener('click', e=>{ if(e.target===e.currentTarget) closeBookModal(); });
+
+async function submitBooking(e) {
+    e.preventDefault();
+    const moveIn  = document.getElementById('moveIn').value;
+    const moveOut = document.getElementById('moveOut').value;
+    const msg     = document.getElementById('bookMsgText').value.trim();
+    const btn     = document.getElementById('bookBtn');
+    const msgEl   = document.getElementById('bookMsg');
+
+    if (!moveIn||!moveOut) { msgEl.className='form-msg error visible'; msgEl.textContent='Please select both dates.'; return; }
+    if (moveOut<=moveIn)   { msgEl.className='form-msg error visible'; msgEl.textContent='Move-out must be after move-in.'; return; }
+
+    btn.disabled=true; btn.textContent='Sending…';
+    try {
+        const res  = await fetch('/api/book', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({ dorm_id:activeDormId, user_id:user.id, move_in:moveIn, move_out:moveOut, message:msg })
+        });
+        const data = await res.json();
+        if (data.success) {
+            msgEl.className='form-msg success visible';
+            msgEl.textContent='✅ Booking request sent!';
+            btn.textContent='Request Sent';
+            loadBookings();
+        } else {
+            msgEl.className='form-msg error visible'; msgEl.textContent=data.message;
+            btn.disabled=false; btn.textContent='Send Booking Request';
+        }
+    } catch {
+        msgEl.className='form-msg error visible'; msgEl.textContent='Cannot connect to server.';
+        btn.disabled=false; btn.textContent='Send Booking Request';
+    }
+}
+</script>
+</body>
+</html>
